@@ -42,6 +42,23 @@ class ProjetoIdSchema(BaseModel):
     class Config:
         orm_mode = True  # Permite a conversão de ORM para Pydantic
 
+class ProjetoEditSchema(BaseModel):
+    """
+    Schema para representar um projeto, utilizando apenas o ID.
+
+    Este schema pode ser útil quando queremos representar um projeto apenas pelo seu ID.
+    """
+    id: int  # ID do projeto
+    nome: str = "Nome Projeto" # Nome do projeto
+    sigla: str = "SIGEPP"  # Sigla do projeto
+    descricao: Optional[str] = "Projeto de especificação e desenvolvimento de sistema para manter um portifólio de projetos de TI gerenciados na área."  # Descrição do projeto, opcional
+    tipo: str = "Interno" # Tipo de projeto
+    custo: float = "10000" # Custo do projeto
+    status: str = "Em andamento" # Status do projeto
+
+    class Config:
+        orm_mode = True  # Permite a conversão de ORM para Pydantic
+
 
         
 class ProjetoViewSchema(BaseModel):
@@ -89,28 +106,28 @@ class ProjetoMsgSchema(BaseModel):
     id: int  # ID do projeto excluído
 
 
-def apresenta_projeto(projeto: Projeto):
-    """ Retorna uma representação do projeto seguindo o schema definido em
-        ProjetoViewSchema.
-    """
-    return {
-        "id": projeto.id,
-        "nome": projeto.nome,
-        "sigla": projeto.sigla,
-        "descricao": projeto.descricao,
-        "custo": projeto.custo,
-        "data_registro": projeto.data_registro,
-        "total_cometarios": len(projeto.historico),
-        "historico": [{"descricao": c.descricao} for c in projeto.historico]
-    }
+# def apresenta_projeto(projeto: Projeto):
+#     """ Retorna uma representação do projeto seguindo o schema definido em
+#         ProjetoViewSchema.
+#     """
+#     return {
+#         "id": projeto.id,
+#         "nome": projeto.nome,
+#         "sigla": projeto.sigla,
+#         "descricao": projeto.descricao,
+#         "custo": projeto.custo,
+#         "data_registro": projeto.data_registro,
+#         "total_cometarios": len(projeto.historico),
+#         "historico": [{"descricao": c.descricao} for c in projeto.historico]
+#     }
 
 
-def apresenta_projetos(projetos: List[Projeto]):
-    """ Retorna uma representação do projeto seguindo o schema definido em
-        ProjetoViewSchema.
-    """
-    result = []
-    for projeto in projetos:
-        result.append(apresenta_projeto(projeto))
+# def apresenta_projetos(projetos: List[Projeto]):
+#     """ Retorna uma representação do projeto seguindo o schema definido em
+#         ProjetoViewSchema.
+#     """
+#     result = []
+#     for projeto in projetos:
+#         result.append(apresenta_projeto(projeto))
 
-    return {"projetos": result}
+#     return {"projetos": result}

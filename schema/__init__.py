@@ -4,9 +4,8 @@ from schema.projeto_schema import (
     ProjetoIdSchema,
     ProjetoViewSchema,
     ProjetoBuscaIdSchema,
+    ProjetoEditSchema,
     ProjetoBuscaNomeSchema,
-    ProjetoMsgSchema,
-    apresenta_projeto, 
-    apresenta_projetos
+    ProjetoMsgSchema
 )
 from schema.error_schema import ErrorSchema

@@ -1,10 +1,9 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from model.base import Base
 from model.historico import Historico
 from typing import Union
-from sqlalchemy.exc import IntegrityError
 import re
 
 class Projeto(Base):
@@ -16,8 +15,6 @@ class Projeto(Base):
     sigla = Column(String(10), unique=True, nullable=False)  # Sigla do projeto, único e não nulo
     descricao = Column(Text, nullable=True)  # Descrição do projeto (opcional)
     tipo = Column(String(50), nullable=False)  # Tipo de projeto (não nulo)
-    # data_inicio = Column(Date, nullable=True)  # Data de início (comentada, caso necessário no futuro)
-    # data_fim = Column(Date, nullable=True)  # Data de fim (comentada, caso necessário no futuro)
     custo = Column(Float, nullable=False)  # Custo do projeto (não nulo)
     status = Column(String(50), nullable=False)  # Status do projeto (não nulo)
     data_registro = Column(DateTime, default=datetime.now)  # Data de registro do projeto, padrão é o momento atual
@@ -42,8 +39,6 @@ class Projeto(Base):
         self.sigla = sigla
         self.descricao = descricao
         self.tipo = tipo
-        # self.data_inicio = data_inicio  # Comentado, caso você queira usar no futuro
-        # self.data_fim = data_fim  # Comentado, caso você queira usar no futuro
         self.custo = custo
         self.status = status
 
@@ -55,7 +50,7 @@ class Projeto(Base):
 
         # Chamando as validações
         self.validar_nome()
-        #self.validar_sigla()
+        self.validar_sigla()
         self.validar_custo()
 
 

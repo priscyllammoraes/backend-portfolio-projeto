@@ -3,13 +3,13 @@ from flask_openapi3 import OpenAPI, Info, Tag
 from model import Session
 from model.projeto import Projeto
 from model.historico import Historico
-from schema.projeto_schema import ProjetoSchema, ProjetoIdSchema, ProjetoViewSchema, ProjetoMsgSchema, ProjetoBuscaIdSchema, ProjetoBuscaNomeSchema, ListagemProjetoSchema, apresenta_projeto, apresenta_projetos
+from schema.projeto_schema import ProjetoSchema, ProjetoIdSchema, ProjetoEditSchema, ProjetoMsgSchema, ProjetoBuscaIdSchema, ListagemProjetoSchema
 from schema.historico_schema import HistoricoSchema, HistoricoViewSchema
 from schema.error_schema import ErrorSchema
 from flask_cors import CORS
 from logger import logger
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime
+
 
 # Informações da API
 info = Info(
@@ -24,6 +24,7 @@ Rotas criadas:
     post: /projeto - Adicionar Projeto
     get: /projetos - Listar Projetos
     delete: /projeto - Deletar Projeto
+    put: /projeto - Editar Projeto
     post: /historico - Adicionar Histórico
     get: /historico - Listar Histórico
 '''
@@ -49,8 +50,6 @@ def criar_projeto(body: ProjetoSchema):
     """
     try:
         # Convertendo o corpo da requisição para um dicionário
-        # Criando o projeto a partir dos dados
-        #data = body.dict()
         projeto = Projeto(**body.dict())  
 
         # Sessão de banco de dados para persistir o projeto
@@ -88,6 +87,41 @@ def listar_projetos():
         logger.info(f"%dProjetos encontrado:" % len(projetos))
         print(projetos)
         return jsonify([ProjetoIdSchema.from_orm(p).dict() for p in projetos])
+    
+@app.get('/projeto', tags=[projeto_tag], responses={"200": ProjetoIdSchema, "500": ErrorSchema})
+def buscar_projeto(query: ProjetoBuscaIdSchema):
+    """Buscar um projeto pelo ID fornecido.
+
+    Retorna uma representação do projeto.
+    """
+    try:
+        # Buscar o projeto no banco de dados pelo ID
+        session = Session()
+        projeto_id = query.id
+        projeto = session.query(Projeto).filter(Projeto.id == projeto_id).first()
+
+        if not projeto:
+            return jsonify({"mensagem": "Projeto não encontrado"}), 404
+
+        # Converter o objeto para JSON
+        projeto = {
+            "id": projeto.id,
+            "nome": projeto.nome,
+            "sigla": projeto.sigla,
+            "descricao": projeto.descricao,
+            "tipo": projeto.tipo,
+            "custo": projeto.custo,
+            "status": projeto.status,
+            "data_registro": projeto.data_registro.strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        logger.info("TESTE",projeto)
+        return jsonify(projeto), 200
+
+    except Exception as e:
+        # Tratando qualquer erro inesperado
+        error_msg = f"Erro interno ao tentar buscar o projeto com ID {projeto_id}: {str(e)}"
+        logger.error(error_msg)
+        return {"mensagem": error_msg}, 500
 
 # Rota para deletar um projeto por ID
 @app.delete('/projeto', tags=[projeto_tag], responses={"200": ProjetoMsgSchema, "404": ErrorSchema, "500": ErrorSchema})
@@ -116,12 +150,64 @@ def deletar_projeto(query: ProjetoBuscaIdSchema):
         error_msg = f"Erro interno ao tentar deletar o projeto com ID {projeto_id}: {str(e)}"
         logger.error(error_msg)
         return {"mensagem": error_msg}, 500
+    
+
+@app.put('/projeto', tags=[projeto_tag], responses={"200": ProjetoSchema, "404": ErrorSchema, "400": ErrorSchema})
+def editar_projeto(body: ProjetoEditSchema):
+    """Edita um projeto existente com base nos dados fornecidos.
+
+    O ID do projeto deve ser enviado no corpo da requisição.
+    """
+    session = Session()
+    
+    try:
+        # Verificar se o ID foi fornecido
+        projeto_id = body.id
+        if not projeto_id:
+            return {"mensagem": "ID do projeto não fornecido."}, 400
+        
+        # Buscando o projeto no banco de dados
+        projeto = session.query(Projeto).filter_by(id=projeto_id).first()
+        if not projeto:
+            return {"mensagem": f"Projeto com ID {projeto_id} não encontrado."}, 404
+
+        # Atualizando os atributos do projeto com os dados fornecidos
+        for campo, valor in body.dict(exclude_unset=True).items():
+            if hasattr(projeto, campo) and campo != "id":  # Evitar atualizar o campo 'id'
+                setattr(projeto, campo, valor)
+
+        # Validando as alterações
+        projeto.validar_nome()
+        projeto.validar_sigla()
+        projeto.validar_custo()
+
+        # Salvando as alterações no banco de dados
+        session.commit()
+
+        # Retornando resposta de sucesso
+        return jsonify({"mensagem": "Projeto atualizado com sucesso!", "projeto": ProjetoSchema.from_orm(projeto).dict()}), 200
+
+    except IntegrityError as e:
+        session.rollback()
+        return {"mensagem": f"Erro de integridade: {str(e)}"}, 400
+
+    except ValueError as e:
+        session.rollback()
+        return {"mensagem": f"Erro de validação: {str(e)}"}, 400
+
+    except Exception as e:
+        session.rollback()
+        return {"mensagem": f"Erro ao atualizar o projeto: {str(e)}"}, 500
+
+    finally:
+        session.close()
 
 # Rota para adicionar histórico a um projeto
 @app.post('/historico', tags=[historico_tag], responses={"201": HistoricoViewSchema, "400": ErrorSchema, "404": ErrorSchema})
 def add_historico(body: HistoricoSchema):
     """Adiciona um novo registro histórico a um projeto.
 
+    Retorna uma lista de histórico.
     """
     session = Session()
 
@@ -148,8 +234,7 @@ def add_historico(body: HistoricoSchema):
     return {
         "mensagem": "Histórico adicionado com sucesso!",
         "projeto": projeto_id,
-        "descricao": body.descricao,
-    }, 200
+        "descricao": body.descricao,}, 200
 
 # Rota para listar o histórico de um projeto
 @app.get('/historico', tags=[historico_tag], responses={"200": HistoricoViewSchema, "404": ErrorSchema})
@@ -186,7 +271,6 @@ def listar_historico():
             "data_insercao": historico.data_insercao.strftime("%d/%m/%Y %H:%M %Z")
         } for historico in historicos
     ]
-
     logger.info(f"Listagem de histórico do projeto ID {projeto_id} realizada com sucesso.")
     return {"projeto_id": projeto_id, "historico": historico_list}, 200
 
